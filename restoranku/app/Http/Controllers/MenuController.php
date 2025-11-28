@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Http\Request;
 use App\Models\Item;
 
 class MenuController extends Controller
@@ -29,36 +29,83 @@ class MenuController extends Controller
 
     public function addToCart(Request $request)
     {
-        $menuId = $request->input('menu_id');
+        $menuId = $request->input('id');
         $menu = Item::find($menuId);
 
-        if(!$menu) {
+        if (!$menu) {
             return response()->json([
-                'status' => 'Error',
+                'status' => false,
                 'message' => 'Menu tidak ditemukan'
-            ]) ;
+            ]);
         }
 
         $cart = Session::get('cart', []);
 
-        if(isset($cart[$menuId])) {
+        if (isset($cart[$menuId])) {
             $cart[$menuId]['qty'] += 1;
         } else {
             $cart[$menuId] = [
                 'id' => $menu->id,
                 'name' => $menu->name,
                 'price' => $menu->price,
-                'img' => $menu->img,
+                'image' => $menu->img,
                 'qty' => 1
             ];
         }
 
         Session::put('cart', $cart);
+        Session::save(); // <-- ini yang bikin cart tersimpan
 
         return response()->json([
-            'status' => 'Success',
+            'status' => true,
             'message' => 'Menu berhasil ditambahkan ke keranjang',
             'cart' => $cart
         ]);
     }
+
+   public function updateCart(Request $request)
+    {
+        $itemId = $request->input('id');
+        $newQty = $request->input('qty');
+
+        if ($newQty <= 0) {
+            return response()->json(['success' => false]);
+        }
+
+        $cart = Session::get('cart');
+        if (isset($cart[$itemId])) {
+            $cart[$itemId]['qty'] = $newQty;
+            Session::put('cart', $cart);
+            Session::flash('success', 'Jumlah item berhasil diperbarui');
+
+            return response()->json([ 'success' => true]);
+        }
+
+        return response()->json(['success' => false]);
+    }
+
+    public function removeCart(Request $request)
+    {
+        $itemId = $request->input('id');
+
+        $cart = Session::get('cart');
+        if (isset($cart[$itemId])) {
+            unset($cart[$itemId]);
+            Session::put('cart', $cart);
+            Session::flash('success', 'Item berhasil dihapus dari keranjang');
+
+            return response()->json(['success' => true]);
+        }
+
+        return response()->json(['success' => false]);
+    }
+
+    public function clearCart()
+    {
+        Session::forget('cart');
+        Session::flash('success', 'Keranjang berhasil dikosongkan');
+
+        return redirect()->route('cart')->with('success', 'Keranjang berhasil dikosongkan');
+    }
+
 }
