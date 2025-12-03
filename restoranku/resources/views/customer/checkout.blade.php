@@ -1,19 +1,14 @@
 @extends('customer.layouts.master')
 
 @section('content')
-    @php
-        use Illuminate\Support\Str;
-    @endphp
-
     <!-- Single Page Header start -->
     <div class="container-fluid page-header py-5">
         <h1 class="text-center text-white display-6">Checkout</h1>
         <ol class="breadcrumb justify-content-center mb-0">
-            <li class="breadcrumb-item active text-primary">Silakan isi detail pesanan anda</li>
+            <li class="breadcrumb-item active text-primary">Silakan isi detail pemesanan Anda</li>
         </ol>
     </div>
     <!-- Single Page Header End -->
-
     <div class="container-fluid py-5">
         <div class="container py-5">
             <h1 class="mb-4">Detail Pembayaran</h1>
@@ -24,21 +19,21 @@
                         <div class="row">
                             <div class="col-md-12 col-lg-4">
                                 <div class="form-item w-100">
-                                    <label class="form-label my-3">Nama Lengkap<sup class="text-danger">*</sup></label>
+                                    <label class="form-label my-3">Nama Lengkap<sup>*</sup></label>
                                     <input type="text" name="fullname" class="form-control"
-                                        placeholder="Masukkan Nama Anda" required>
+                                        placeholder="Masukka nama Anda" required>
                                 </div>
                             </div>
                             <div class="col-md-12 col-lg-4">
                                 <div class="form-item w-100">
-                                    <label class="form-label my-3">Nomor WhatsApp<sup class="text-danger">*</sup></label>
-                                    <input type="text" name="phone" class="form-control" placeholder="Nomor WA"
-                                        required>
+                                    <label class="form-label my-3">Nomor WhatsApp<sup>*</sup></label>
+                                    <input type="text" name="phone" class="form-control"
+                                        placeholder="Masukkan Nomor WhatsApp Anda" required>
                                 </div>
                             </div>
                             <div class="col-md-12 col-lg-4">
                                 <div class="form-item w-100">
-                                    <label class="form-label my-3">Nomor Meja</label>
+                                    <label class="form-label my-3">Nomor Meja<sup>*</sup></label>
                                     <input type="text" class="form-control"
                                         value="{{ $tableNumber ?? 'Tidak ada nomor meja' }}" disabled required>
                                 </div>
@@ -48,7 +43,7 @@
                         <div class="row">
                             <div class="col-md-12 col-lg-12">
                                 <div class="form-item">
-                                    <textarea name="text" class="form-control" spellcheck="false" cols="30" rows="5"
+                                    <textarea name="note" class="form-control" spellcheck="false" cols="30" rows="5"
                                         placeholder="Catatan pesanan (Opsional)"></textarea>
                                 </div>
                             </div>
@@ -71,22 +66,18 @@
                                         @php
                                             $subTotal = 0;
                                         @endphp
-
-                                        @foreach ($cart as $item)
+                                        @foreach (session('cart') as $item)
                                             @php
                                                 $itemTotal = $item['price'] * $item['qty'];
                                                 $subTotal += $itemTotal;
                                             @endphp
-
                                             <tr>
                                                 <th scope="row">
                                                     <div class="d-flex align-items-center mt-2">
-                                                        <img src="{{ Str::startsWith($item['image'], ['http', 'https'])
-                                                            ? $item['image']
-                                                            : asset('img_item_upload/' . $item['image']) }}"
+                                                        <img src="{{ asset('img_item_upload/' . $item['image']) }}"
                                                             class="img-fluid me-5 rounded-circle"
-                                                            style="width: 80px; height: 80px;" alt="Menu Image"
-                                                            onerror="this.onerror=null;this.src='{{ asset('img_item_upload/default.png') }}';" />
+                                                            style="width: 80px; height: 80px;" alt=""
+                                                            onerror="this.onerror=null;this.src='{{ $item['image'] }}';">
                                                     </div>
                                                 </th>
                                                 <td class="py-5">{{ $item['name'] }}</td>
@@ -104,10 +95,9 @@
                         </div>
                     </div>
                     @php
-                        $tax = $subTotal * 0.1; // 10% tax
+                        $tax = $subTotal * 0.1;
                         $total = $subTotal + $tax;
                     @endphp
-
                     <div class="col-md-12 col-lg-6 col-xl-6">
                         <div class="row g-4 align-items-center py-3">
                             <div class="col-lg-12">
@@ -127,7 +117,7 @@
                                     </div>
                                     <div class="py-4 mb-4 border-top border-bottom d-flex justify-content-between">
                                         <h4 class="mb-0 ps-4 me-4">Total</h4>
-                                        <h5 class="mb-0 pe-4">{{ number_format($total, 0, ',', '.') }}</h5>
+                                        <h5 class="mb-0 pe-4">Rp{{ number_format($total, 0, ',', '.') }}</h5>
                                     </div>
 
                                     <div class="py-4 mb-4 d-flex justify-content-between">
@@ -146,9 +136,8 @@
                                         </div>
                                     </div>
                                 </div>
-
                                 <div class="d-flex justify-content-end">
-                                    <button type="submit"
+                                    <button type="button" id="pay-button"
                                         class="btn border-secondary py-3 text-uppercase text-primary">Konfirmasi
                                         Pesanan</button>
                                 </div>
@@ -160,4 +149,60 @@
             </form>
         </div>
     </div>
+
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ env('MIDTRANS_CLIENT_KEY') }}">
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const payButton = document.getElementById("pay-button");
+            const form = document.querySelector("form");
+
+            payButton.addEventListener("click", function() {
+                let paymentMethod = document.querySelector('input[name="payment_method"]:checked');
+
+                if (!paymentMethod) {
+                    alert("Pilih Metode Pembayaran Terlebih Dahulu!");
+                    return;
+                }
+
+                paymentMethod = paymentMethod.value;
+                let formData = new FormData(form);
+
+                if (paymentMethod === "tunai") {
+                    form.submit();
+                } else {
+                    fetch("{{ route('checkout.store') }}", {
+                            method: "POST",
+                            body: formData,
+                            headers: {
+                                "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.snap_token) {
+                                snap.pay(data.snap_token, {
+                                    onSuccess: function(result) {
+                                        window.location.href = "/checkout/success/" + data
+                                            .order_code;
+                                    },
+                                    onPending: function(result) {
+                                        alert("Menunggu Pembayaran");
+                                    },
+                                    onError: function(result) {
+                                        alert("Pembayaran Gagal");
+                                    }
+                                });
+                            } else {
+                                alert("Terjadi kesalahan, silakan coba lagi.");
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Error:", error);
+                            alert("Terjadi kesalahan, silakan coba lagi ya.");
+                        });
+                }
+            })
+        })
+    </script>
 @endsection
